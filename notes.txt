@@ -1,0 +1,47 @@
+Tables 
+* 
+- raw 
+- filter
+- nat
+- mangle
+- security
+
+Chains
+* lists of rules followed in order
+- filter table - INPUT OUTPUT FORWARD
+- nat table - PREROUTING POSTROUTING OUTPUT
+- user-defined chains
+- policies - ACCEPT,DROP  * default policy is ACCEPT
+
+  Target (-j option sends packets)
+  - user-defined chain 
+  - built-in target
+    - ACCEPT,DROP,QUEUE,RETURN
+  - target extensions ** TODO
+
+
+
+
+  /etc/sysconfig/iptables-config
+  /etc/sysconfig/ip6tables-config
+
+  iptables-save > file
+  iptables-restore < file
+
+EXAMPLES
+# commands
+iptables -I INPUT 1 -i lo -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -d serverfault.com -j ACCEPT
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+
+# cleanup
+iptables -F
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+
+
+MAN
+https://linux.die.net/man/8/iptables
