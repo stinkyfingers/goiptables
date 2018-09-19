@@ -52,8 +52,11 @@ func TestParseListRules(t *testing.T) {
 }
 
 func TestParseLine(t *testing.T) {
-	line := [][]byte{[]byte("-i"), []byte("lo"), []byte("-j"), []byte("ACCEPT")}
-	rule := parseLine(line)
+	line := [][]byte{[]byte("-t"), []byte("filter"), []byte("-i"), []byte("lo"), []byte("-j"), []byte("ACCEPT"), []byte("-c"), []byte("2"), []byte("10")}
+	rule, err := parseLine(line)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// assert
 	if rule.RuleSpecifications.Jump != "ACCEPT" {
@@ -62,22 +65,21 @@ func TestParseLine(t *testing.T) {
 	if rule.RuleSpecifications.InInterface != "lo" {
 		t.Errorf("expected InInterface to be 'lo', got %s", rule.RuleSpecifications.InInterface)
 	}
+	t.Log("RULE... ", rule)
 }
 
 func TestParseRule(t *testing.T) {
 	r := []Rule{{
-		Stats: Stats{
-			Bytes:   10,
-			Packets: 2,
-		},
+		Table: "filter",
 		RuleSpecifications: RuleSpecifications{
-			Match: "dccp",
+			Match:       "dccp",
+			SetCounters: "10 2",
 		},
 		MatchExtensions: MatchExtensions{
 			DestPort: "22",
 		},
 	}}
-	output := []byte("-A INPUT -c 10 2 -m dccp --dport 22")
+	output := []byte("-A INPUT -t filter c 10 2 -m dccp --dport 22")
 	rule, _, err := parseListRules("filter", output)
 	if err != nil {
 		t.Error(err)
