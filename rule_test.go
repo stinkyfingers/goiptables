@@ -5,24 +5,6 @@ import (
 	"testing"
 )
 
-func TestArgs(t *testing.T) {
-	expected := []string{"-j", "ACCEPT", "-i", "lo"}
-	rule := &Rule{
-		RuleNumber: "1",
-		RuleSpecifications: RuleSpecifications{
-			InInterface: "lo",
-			Jump:        "ACCEPT",
-		},
-	}
-	arr, err := rule.RuleSpecifications.parse()
-	if err != nil {
-		t.Error(err)
-	}
-	if !reflect.DeepEqual(expected, arr) {
-		t.Errorf("args not as expected; got %v, wanted %v", arr, expected)
-	}
-}
-
 func TestParseListRules(t *testing.T) {
 	output := []byte(`
 -P INPUT ACCEPT
@@ -51,9 +33,32 @@ func TestParseListRules(t *testing.T) {
 	}
 }
 
-func TestParseLine(t *testing.T) {
-	line := [][]byte{[]byte("-t"), []byte("filter"), []byte("-i"), []byte("lo"), []byte("-j"), []byte("ACCEPT"), []byte("-c"), []byte("2"), []byte("10")}
-	rule, err := parseLine(line)
+func TestParseRule(t *testing.T) {
+	expected := []Rule{{
+		Table: "filter",
+		RuleSpecifications: RuleSpecifications{
+			Match:       "dccp",
+			SetCounters: "10 2",
+		},
+		MatchExtensions: MatchExtensions{
+			Dccp: Dccp{
+				DstPort: "22",
+			},
+		},
+	}}
+	output := []byte("-A INPUT -t filter c 10 2 -m dccp --dport 22")
+	rule, _, err := parseListRules("filter", output)
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(expected, rule) {
+		t.Errorf("error parsing rule, got \n%v\n, wanted \n%v\n", rule, expected)
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
+	data := []byte("-t filter -i lo -j ACCEPT -c 2 10")
+	rule, err := Unmarshal(data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -68,23 +73,70 @@ func TestParseLine(t *testing.T) {
 	t.Log("RULE... ", rule)
 }
 
-func TestParseRule(t *testing.T) {
-	r := []Rule{{
-		Table: "filter",
+func TestMarshal(t *testing.T) {
+	r := Rule{
+		RuleNumber: "2",
+		Table:      "filter",
 		RuleSpecifications: RuleSpecifications{
 			Match:       "dccp",
 			SetCounters: "10 2",
 		},
 		MatchExtensions: MatchExtensions{
-			DestPort: "22",
+			Dccp: Dccp{
+				DstPort: "22",
+			},
+			Conntrack: Conntrack{
+				Ctstate: "ESTABLISHED",
+			},
 		},
-	}}
-	output := []byte("-A INPUT -t filter c 10 2 -m dccp --dport 22")
-	rule, _, err := parseListRules("filter", output)
+	}
+
+	expected := []string{"2", "-t", "filter", "-m", "dccp", "-c", "10 2", "-m", "conntrack", "-m", "dccp", "--ctstate", "ESTABLISHED", "--dport", "22"}
+
+	j, err := r.Marshal()
 	if err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(r, rule) {
-		t.Errorf("error parsing rule, got \n%v\n, wanted \n%v\n", rule, r)
+	if !reflect.DeepEqual(j, expected) {
+		t.Errorf("error marshalling; expected \n%v\n, got \n%v\n", expected, j)
+	}
+}
+
+func TestIsNil(t *testing.T) {
+	var n bool
+
+	s := Connlimit{}
+	n = isNil(reflect.ValueOf(s))
+	if !n {
+		t.Error("expected struct to be nil")
+	}
+
+	s.ConnlimitMask = "value"
+	n = isNil(reflect.ValueOf(s))
+	if n {
+		t.Error("expected struct to not be nil")
+	}
+
+	// custom struct
+	type foo struct {
+		f string
+	}
+	type bar struct {
+		i   string
+		foo foo
+	}
+	bar1 := bar{
+		"3",
+		foo{"foofoo"},
+	}
+	n = isNil(reflect.ValueOf(bar1))
+	if n {
+		t.Error("expected struct to not be nil")
+	}
+
+	var bar2 bar
+	n = isNil(reflect.ValueOf(bar2))
+	if !n {
+		t.Error("expected struct to be nil")
 	}
 }

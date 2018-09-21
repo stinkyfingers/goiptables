@@ -1,0 +1,576 @@
+account
+
+Account traffic for all hosts in defined network/netmask.
+Features:
+
+- long (one counter per protocol TCP/UDP/IMCP/Other) and short statistics
+
+- one iptables rule for all hosts in network/netmask
+
+- loading/saving counters (by reading/writting to procfs entries)
+
+--aaddr network/netmask
+defines network/netmask for which make statistics.
+--aname name
+defines name of list where statistics will be kept. If no is specified DEFAULT will be used.
+--ashort
+table will colect only short statistics (only total counters without splitting it into protocols.
+Example usage:
+account traffic for/to 192.168.0.0/24 network into table mynetwork:
+
+# iptables -A FORWARD -m account --aname mynetwork --aaddr 192.168.0.0/24
+
+account traffic for/to WWW serwer for 192.168.0.0/24 network into table mywwwserver:
+
+# iptables -A INPUT -p tcp --dport 80 -m account --aname mywwwserver --aaddr 192.168.0.0/24 --ashort
+
+# iptables -A OUTPUT -p tcp --sport 80 -m account --aname mywwwserver --aaddr 192.168.0.0/24 --ashort
+
+read counters:
+
+# cat /proc/net/ipt_account/mynetwork # cat /proc/net/ipt_account/mywwwserver
+
+set counters:
+
+# echo "ip = 192.168.0.1 packets_src = 0" > /proc/net/ipt_account/mywwserver
+
+Webpage: http://www.barbara.eu.org/~quaker/ipt_account/
+
+addrtype
+
+This module matches packets based on their address type. Address types are used within the kernel networking stack and categorize addresses into various groups. The exact definition of that group depends on the specific layer three protocol.
+The following address types are possible:
+UNSPEC
+an unspecified address (i.e. 0.0.0.0) UNICAST an unicast address LOCAL a local address BROADCAST a broadcast address ANYCAST an anycast packet MULTICAST a multicast address BLACKHOLE a blackhole address UNREACHABLE an unreachable address PROHIBIT a prohibited address THROW FIXME NAT FIXME XRESOLVE FIXME
+
+--src-type type
+Matches if the source address is of given type
+--dst-type type
+Matches if the destination address is of given type
+ah
+
+This module matches the SPIs in Authentication header of IPsec packets.
+--ahspi [!] spi[:spi]
+childlevel
+
+This is an experimental module. It matches on whether the packet is part of a master connection or one of its children (or grandchildren, etc). For instance, most packets are level 0. FTP data transfer is level 1.
+--childlevel [!] level
+comment
+
+Allows you to add comments (up to 256 characters) to any rule.
+--comment comment
+Example:
+iptables -A INPUT -s 192.168.0.0/16 -m comment --comment "A privatized IP block"
+condition
+
+This matches if a specific /proc filename is '0' or '1'.
+--condition [!] filename
+Match on boolean value stored in /proc/net/ipt_condition/filename file
+connbytes
+
+Match by how many bytes or packets a connection (or one of the two flows constituting the connection) have tranferred so far, or by average bytes per packet.
+The counters are 64bit and are thus not expected to overflow ;)
+
+The primary use is to detect long-lived downloads and mark them to be scheduled using a lower priority band in traffic control.
+
+The transfered bytes per connection can also be viewed through /proc/net/ip_conntrack and accessed via ctnetlink
+
+[!] --connbytes from:[to]
+match packets from a connection whose packets/bytes/average packet size is more than FROM and less than TO bytes/packets. if TO is omitted only FROM check is done. "!" is used to match packets not falling in the range.
+--connbytes-dir [original|reply|both]
+which packets to consider
+--connbytes-mode [packets|bytes|avgpkt]
+whether to check the amount of packets, number of bytes transferred or the average size (in bytes) of all packets received so far. Note that when "both" is used together with "avgpkt", and data is going (mainly) only in one direction (for example HTTP), the average packet size will be about half of the actual data packets.
+Example:
+iptables .. -m connbytes --connbytes 10000:100000 --connbytes-dir both --connbytes-mode bytes ...
+connlimit
+
+Allows you to restrict the number of parallel TCP connections to a server per client IP address (or address block).
+[!] --connlimit-above n
+match if the number of existing tcp connections is (not) above n
+--connlimit-mask bits
+group hosts using mask
+Examples:
+# allow 2 telnet connections per client host
+iptables -p tcp --syn --dport 23 -m connlimit --connlimit-above 2 -j REJECT
+# you can also match the other way around:
+iptables -p tcp --syn --dport 23 -m connlimit ! --connlimit-above 2 -j ACCEPT
+# limit the nr of parallel http requests to 16 per class C sized network (24 bit netmask)
+iptables -p tcp --syn --dport 80 -m connlimit --connlimit-above 16 --connlimit-mask 24 -j REJECT
+connmark
+
+This module matches the netfilter mark field associated with a connection (which can be set using the CONNMARK target below).
+--mark value[/mask]
+Matches packets in connections with the given mark value (if a mask is specified, this is logically ANDed with the mark before the comparison).
+connrate
+
+This module matches the current transfer rate in a connection.
+--connrate [!] [from]:[to]
+Match against the current connection transfer rate being within 'from' and 'to' bytes per second. When the "!" argument is used before the range, the sense of the match is inverted.
+conntrack
+
+This module, when combined with connection tracking, allows access to more connection tracking information than the "state" match. (this module is present only if iptables was compiled under a kernel supporting this feature)
+--ctstate state
+Where state is a comma separated list of the connection states to match. Possible states are INVALID meaning that the packet is associated with no known connection, ESTABLISHED meaning that the packet is associated with a connection which has seen packets in both directions, NEW meaning that the packet has started a new connection, or otherwise associated with a connection which has not seen packets in both directions, and RELATED meaning that the packet is starting a new connection, but is associated with an existing connection, such as an FTP data transfer, or an ICMP error. SNAT A virtual state, matching if the original source address differs from the reply destination. DNAT A virtual state, matching if the original destination differs from the reply source.
+--ctproto proto
+Protocol to match (by number or name)
+--ctorigsrc [!] address[/mask]
+Match against original source address
+--ctorigdst [!] address[/mask]
+Match against original destination address
+--ctreplsrc [!] address[/mask]
+Match against reply source address
+--ctrepldst [!] address[/mask]
+Match against reply destination address
+--ctstatus [NONE|EXPECTED|SEEN_REPLY|ASSURED][,...]
+Match against internal conntrack states
+--ctexpire time[:time]
+Match remaining lifetime in seconds against given value or range of values (inclusive)
+dccp
+
+--source-port,--sport [!] port[:port]
+--destination-port,--dport [!] port[:port]
+--dccp-types [!] mask
+Match when the DCCP packet type is one of 'mask'. 'mask' is a comma-separated list of packet types. Packet types are: REQUEST RESPONSE DATA ACK DATAACK CLOSEREQ CLOSE RESET SYNC SYNCACK INVALID.
+--dccp-option [!] number
+Match if DCP option set.
+dscp
+
+This module matches the 6 bit DSCP field within the TOS field in the IP header. DSCP has superseded TOS within the IETF.
+--dscp value
+Match against a numeric (decimal or hex) value [0-63].
+--dscp-class DiffServ Class
+Match the DiffServ class. This value may be any of the BE, EF, AFxx or CSx classes. It will then be converted into it's according numeric value.
+dstlimit
+
+This module allows you to limit the packet per second (pps) rate on a per destination IP or per destination port base. As opposed to the 'limit' match, every destination ip / destination port has it's own limit.
+THIS MODULE IS DEPRECATED AND HAS BEEN REPLACED BY ''hashlimit''
+--dstlimit avg
+Maximum average match rate (packets per second unless followed by /sec /minute /hour /day postfixes).
+--dstlimit-mode mode
+The limiting hashmode. Is the specified limit per dstip, dstip-dstport tuple, srcip-dstip tuple, or per srcipdstip-dstport tuple.
+--dstlimit-name name
+Name for /proc/net/ipt_dstlimit/* file entry
+[--dstlimit-burst burst]
+Number of packets to match in a burst. Default: 5
+[--dstlimit-htable-size size]
+Number of buckets in the hashtable
+[--dstlimit-htable-max max]
+Maximum number of entries in the hashtable
+[--dstlimit-htable-gcinterval interval]
+Interval between garbage collection runs of the hashtable (in miliseconds). Default is 1000 (1 second).
+[--dstlimit-htable-expire time
+After which time are idle entries expired from hashtable (in miliseconds)? Default is 10000 (10 seconds).
+ecn
+
+This allows you to match the ECN bits of the IPv4 and TCP header. ECN is the Explicit Congestion Notification mechanism as specified in RFC3168
+--ecn-tcp-cwr
+This matches if the TCP ECN CWR (Congestion Window Received) bit is set.
+--ecn-tcp-ece
+This matches if the TCP ECN ECE (ECN Echo) bit is set.
+--ecn-ip-ect num
+This matches a particular IPv4 ECT (ECN-Capable Transport). You have to specify a number between '0' and '3'.
+esp
+
+This module matches the SPIs in ESP header of IPsec packets.
+--espspi [!] spi[:spi]
+fuzzy
+
+This module matches a rate limit based on a fuzzy logic controller [FLC]
+--lower-limit number
+Specifies the lower limit (in packets per second).
+--upper-limit number
+Specifies the upper limit (in packets per second).
+hashlimit
+
+This patch adds a new match called 'hashlimit'. The idea is to have something like 'limit', but either per destination-ip or per (destip,destport) tuple.
+It gives you the ability to express
+
+'1000 packets per second for every host in 192.168.0.0/16'
+'100 packets per second for every service of 192.168.1.1'
+
+with a single iptables rule.
+--hashlimit rate
+A rate just like the limit match
+--hashlimit-burst num
+Burst value, just like limit match
+--hashlimit-mode destip | destip-destport
+Limit per IP or per port
+--hashlimit-name foo
+The name for the /proc/net/ipt_hashlimit/foo entry
+--hashlimit-htable-size num
+The number of buckets of the hash table
+--hashlimit-htable-max num
+Maximum entries in the hash
+--hashlimit-htable-expire num
+After how many miliseconds do hash entries expire
+--hashlimit-htable-gcinterval num
+How many miliseconds between garbage collection intervals
+helper
+
+This module matches packets related to a specific conntrack-helper.
+--helper string
+Matches packets related to the specified conntrack-helper.
+string can be "ftp" for packets related to a ftp-session on default port. For other ports append -portnr to the value, ie. "ftp-2121".
+Same rules apply for other conntrack-helpers.
+
+icmp
+
+This extension is loaded if '--protocol icmp' is specified. It provides the following option:
+--icmp-type [!] typename
+This allows specification of the ICMP type, which can be a numeric ICMP type, or one of the ICMP type names shown by the command
+iptables -p icmp -h
+iprange
+
+This matches on a given arbitrary range of IPv4 addresses
+[!]--src-range ip-ip
+Match source IP in the specified range.
+[!]--dst-range ip-ip
+Match destination IP in the specified range.
+ipv4options
+
+Match on IPv4 header options like source routing, record route, timestamp and router-alert.
+--ssrr
+To match packets with the flag strict source routing.
+
+--lsrr
+
+To match packets with the flag loose source routing.
+
+--no-srr
+To match packets with no flag for source routing.
+[!] --rr
+To match packets with the RR flag.
+[!] --ts
+To match packets with the TS flag.
+[!] --ra
+To match packets with the router-alert option.
+[!] --any-opt
+To match a packet with at least one IP option, or no IP option at all if ! is chosen.
+Examples:
+$ iptables -A input -m ipv4options --rr -j DROP
+will drop packets with the record-route flag.
+$ iptables -A input -m ipv4options --ts -j DROP
+will drop packets with the timestamp flag.
+length
+
+This module matches the length of a packet against a specific value or range of values.
+--length [!] length[:length]
+limit
+
+This module matches at a limited rate using a token bucket filter. A rule using this extension will match until this limit is reached (unless the '!' flag is used). It can be used in combination with the LOG target to give limited logging, for example.
+--limit rate
+Maximum average matching rate: specified as a number, with an optional '/second', '/minute', '/hour', or '/day' suffix; the default is 3/hour.
+--limit-burst number
+Maximum initial number of packets to match: this number gets recharged by one every time the limit specified above is not reached, up to this number; the default is 5.
+mac
+
+--mac-source [!] address
+Match source MAC address. It must be of the form XX:XX:XX:XX:XX:XX. Note that this only makes sense for packets coming from an Ethernet device and entering the PREROUTING, FORWARD or INPUT chains.
+mark
+
+This module matches the netfilter mark field associated with a packet (which can be set using the MARK target below).
+--mark value[/mask]
+Matches packets with the given unsigned mark value (if a mask is specified, this is logically ANDed with the mask before the comparison).
+mport
+
+This module matches a set of source or destination ports. Up to 15 ports can be specified. It can only be used in conjunction with -p tcp or -p udp.
+--source-ports port[,port[,port...]]
+Match if the source port is one of the given ports. The flag --sports is a convenient alias for this option.
+--destination-ports port[,port[,port...]]
+Match if the destination port is one of the given ports. The flag --dports is a convenient alias for this option.
+--ports port[,port[,port...]]
+Match if the both the source and destination ports are equal to each other and to one of the given ports.
+multiport
+
+This module matches a set of source or destination ports. Up to 15 ports can be specified. A port range (port:port) counts as two ports. It can only be used in conjunction with -p tcp or -p udp.
+--source-ports [!] port[,port[,port:port...]]
+Match if the source port is one of the given ports. The flag --sports is a convenient alias for this option.
+--destination-ports [!] port[,port[,port:port...]]
+Match if the destination port is one of the given ports. The flag --dports is a convenient alias for this option.
+--ports [!] port[,port[,port:port...]]
+Match if either the source or destination ports are equal to one of the given ports.
+nth
+
+This module matches every 'n'th packet
+--every value
+Match every 'value' packet
+[--counter num]
+Use internal counter number 'num'. Default is '0'.
+[--start num]
+Initialize the counter at the number 'num' insetad of '0'. Most between '0' and 'value'-1.
+[--packet num]
+Match on 'num' packet. Most be between '0' and 'value'-1.
+osf
+
+The idea of passive OS fingerprint matching exists for quite a long time, but was created as extension fo OpenBSD pf only some weeks ago. Original idea was lurked in some OpenBSD mailing list (thanks grange@open...) and than adopted for Linux netfilter in form of this code.
+Original fingerprint table was created by Michal Zalewski <lcamtuf@coredump.cx>.
+
+This module compares some data(WS, MSS, options and it's order, ttl, df and others) from first SYN packet (actually from packets with SYN bit set) with dynamically loaded OS fingerprints.
+
+--log 1/0
+If present, OSF will log determined genres even if they don't match desired one.
+
+0 - log all determined entries, 1 - only first one.
+In syslog you find something like this:
+ipt_osf: Windows [2000:SP3:Windows XP Pro SP1, 2000 SP3]: 11.22.33.55:4024 -> 11.22.33.44:139
+ipt_osf: Unknown: 16384:106:1:48:020405B401010402 44.33.22.11:1239 -> 11.22.33.44:80
+
+--smart
+if present, OSF will use some smartness to determine remote OS. OSF will use initial TTL only if source of connection is in our local network.
+--netlink
+If present, OSF will log all events also through netlink NETLINK_NFLOG groupt 1.
+--genre [!] string
+Match a OS genre by passive fingerprinting
+Example:
+#iptables -I INPUT -j ACCEPT -p tcp -m osf --genre Linux --log 1 --smart
+
+NOTE: -p tcp is obviously required as it is a TCP match.
+
+Fingerprints can be loaded and read through /proc/sys/net/ipv4/osf file. One can flush all fingerprints with following command:
+
+echo -en FLUSH > /proc/sys/net/ipv4/osf
+Only one fingerprint per open/write/close.
+Fingerprints can be downloaded from http://www.openbsd.org/cgi-bin/cvsweb/src/etc/pf.os
+
+owner
+
+This module attempts to match various characteristics of the packet creator, for locally-generated packets. It is only valid in the OUTPUT chain, and even this some packets (such as ICMP ping responses) may have no owner, and hence never match.
+--uid-owner userid
+Matches if the packet was created by a process with the given effective user id.
+--gid-owner groupid
+Matches if the packet was created by a process with the given effective group id.
+--pid-owner processid
+Matches if the packet was created by a process with the given process id.
+--sid-owner sessionid
+Matches if the packet was created by a process in the given session group.
+--cmd-owner name
+Matches if the packet was created by a process with the given command name. (this option is present only if iptables was compiled under a kernel supporting this feature)
+NOTE: pid, sid and command matching are broken on SMP
+physdev
+
+This module matches on the bridge port input and output devices enslaved to a bridge device. This module is a part of the infrastructure that enables a transparent bridging IP firewall and is only useful for kernel versions above version 2.5.44.
+--physdev-in [!] name
+Name of a bridge port via which a packet is received (only for packets entering the INPUT, FORWARD and PREROUTING chains). If the interface name ends in a "+", then any interface which begins with this name will match. If the packet didn't arrive through a bridge device, this packet won't match this option, unless '!' is used.
+--physdev-out [!] name
+Name of a bridge port via which a packet is going to be sent (for packets entering the FORWARD, OUTPUT and POSTROUTING chains). If the interface name ends in a "+", then any interface which begins with this name will match. Note that in the nat and mangle OUTPUT chains one cannot match on the bridge output port, however one can in the filter OUTPUT chain. If the packet won't leave by a bridge device or it is yet unknown what the output device will be, then the packet won't match this option, unless
+[!] --physdev-is-in
+Matches if the packet has entered through a bridge interface.
+[!] --physdev-is-out
+Matches if the packet will leave through a bridge interface.
+[!] --physdev-is-bridged
+Matches if the packet is being bridged and therefore is not being routed. This is only useful in the FORWARD and POSTROUTING chains.
+pkttype
+
+This module matches the link-layer packet type.
+--pkt-type [unicast|broadcast|multicast]
+policy
+
+This modules matches the policy used by IPsec for handling a packet.
+--dir in|out
+Used to select whether to match the policy used for decapsulation or the policy that will be used for encapsulation. in is valid in the PREROUTING, INPUT and FORWARD chains, out is valid in the POSTROUTING, OUTPUT and FORWARD chains.
+--pol none|ipsec
+Matches if the packet is subject to IPsec processing.
+--strict
+Selects whether to match the exact policy or match if any rule of the policy matches the given policy.
+--reqid id
+Matches the reqid of the policy rule. The reqid can be specified with setkey(8) using unique:id as level.
+--spi spi
+Matches the SPI of the SA.
+--proto ah|esp|ipcomp
+Matches the encapsulation protocol.
+--mode tunnel|transport
+Matches the encapsulation mode.
+--tunnel-src addr[/mask]
+Matches the source end-point address of a tunnel mode SA. Only valid with --mode tunnel.
+--tunnel-dst addr[/mask]
+Matches the destination end-point address of a tunnel mode SA. Only valid with --mode tunnel.
+--next
+Start the next element in the policy specification. Can only be used with --strict
+
+psd
+
+Attempt to detect TCP and UDP port scans. This match was derived from Solar Designer's scanlogd.
+--psd-weight-threshold threshold
+Total weight of the latest TCP/UDP packets with different destination ports coming from the same host to be treated as port scan sequence.
+--psd-delay-threshold delay
+Delay (in hundredths of second) for the packets with different destination ports coming from the same host to be treated as possible port scan subsequence.
+--psd-lo-ports-weight weight
+Weight of the packet with privileged (<=1024) destination port.
+--psd-hi-ports-weight weight
+Weight of the packet with non-priviliged destination port.
+quota
+
+Implements network quotas by decrementing a byte counter with each packet.
+--quota bytes
+The quota in bytes.
+KNOWN BUGS: this does not work on SMP systems.
+random
+
+This module randomly matches a certain percentage of all packets.
+--average percent
+Matches the given percentage. If omitted, a probability of 50% is set.
+realm
+
+This matches the routing realm. Routing realms are used in complex routing setups involving dynamic routing protocols like BGP.
+--realm [!]value[/mask]
+Matches a given realm number (and optionally mask).
+recent
+
+Allows you to dynamically create a list of IP addresses and then match against that list in a few different ways.
+For example, you can create a 'badguy' list out of people attempting to connect to port 139 on your firewall and then DROP all future packets from them without considering them.
+
+--name name
+Specify the list to use for the commands. If no name is given then 'DEFAULT' will be used.
+[!] --set
+This will add the source address of the packet to the list. If the source address is already in the list, this will update the existing entry. This will always return success (or failure if '!' is passed in).
+[!] --rcheck
+Check if the source address of the packet is currently in the list.
+[!] --update
+Like --rcheck, except it will update the "last seen" timestamp if it matches.
+[!] --remove
+Check if the source address of the packet is currently in the list and if so that address will be removed from the list and the rule will return true. If the address is not found, false is returned.
+[!] --seconds seconds
+This option must be used in conjunction with one of --rcheck or --update. When used, this will narrow the match to only happen when the address is in the list and was seen within the last given number of seconds.
+[!] --hitcount hits
+This option must be used in conjunction with one of --rcheck or --update. When used, this will narrow the match to only happen when the address is in the list and packets had been received greater than or equal to the given value. This option may be used along with --seconds to create an even narrower match requiring a certain number of hits within a specific time frame.
+--rttl
+This option must be used in conjunction with one of --rcheck or --update. When used, this will narrow the match to only happen when the address is in the list and the TTL of the current packet matches that of the packet which hit the --set rule. This may be useful if you have problems with people faking their source address in order to DoS you via this module by disallowing others access to your site by sending bogus packets to you.
+
+Examples:
+# iptables -A FORWARD -m recent --name badguy --rcheck --seconds 60 -j DROP
+# iptables -A FORWARD -p tcp -i eth0 --dport 139 -m recent --name badguy --set -j DROP
+
+Official website (http://snowman.net/projects/ipt_recent/) also has some examples of usage.
+/proc/net/ipt_recent/* are the current lists of addresses and information about each entry of each list.
+
+Each file in /proc/net/ipt_recent/ can be read from to see the current list or written two using the following commands to modify the list:
+
+echo xx.xx.xx.xx > /proc/net/ipt_recent/DEFAULT
+to Add to the DEFAULT list
+echo -xx.xx.xx.xx > /proc/net/ipt_recent/DEFAULT
+to Remove from the DEFAULT list
+echo clear > /proc/net/ipt_recent/DEFAULT
+to empty the DEFAULT list.
+The module itself accepts parameters, defaults shown:
+ip_list_tot=100
+Number of addresses remembered per table
+ip_pkt_list_tot=20
+Number of packets per address remembered
+ip_list_hash_size=0
+Hash table size. 0 means to calculate it based on ip_list_tot, default: 512
+ip_list_perms=0644
+Permissions for /proc/net/ipt_recent/* files
+debug=0
+Set to 1 to get lots of debugging info
+sctp
+
+--source-port,--sport [!] port[:port]
+--destination-port,--dport [!] port[:port]
+--chunk-types [!] all|any|only chunktype[:flags] [...]
+The flag letter in upper case indicates that the flag is to match if set, in the lower case indicates to match if unset.
+Chunk types: DATA INIT INIT_ACK SACK HEARTBEAT HEARTBEAT_ACK ABORT SHUTDOWN SHUTDOWN_ACK ERROR COOKIE_ECHO COOKIE_ACK ECN_ECNE ECN_CWR SHUTDOWN_COMPLETE ASCONF ASCONF_ACK
+
+chunk type available flags
+DATA U B E u b e
+ABORT T t
+SHUTDOWN_COMPLETE T t
+
+(lowercase means flag should be "off", uppercase means "on")
+
+Examples:
+iptables -A INPUT -p sctp --dport 80 -j DROP
+
+iptables -A INPUT -p sctp --chunk-types any DATA,INIT -j DROP
+
+iptables -A INPUT -p sctp --chunk-types any DATA:Be -j ACCEPT
+
+set
+
+This modules macthes IP sets which can be defined by ipset(8).
+--set setname flag[,flag...]
+where flags are src and/or dst and there can be no more than six of them. Hence the command
+iptables -A FORWARD -m set --set test src,dst
+will match packets, for which (depending on the type of the set) the source address or port number of the packet can be found in the specified set. If there is a binding belonging to the mached set element or there is a default binding for the given set, then the rule will match the packet only if additionally (depending on the type of the set) the destination address or port number of the packet can be found in the set according to the binding.
+state
+
+This module, when combined with connection tracking, allows access to the connection tracking state for this packet.
+--state state
+Where state is a comma separated list of the connection states to match. Possible states are INVALID meaning that the packet could not be identified for some reason which includes running out of memory and ICMP errors which don't correspond to any known connection, ESTABLISHED meaning that the packet is associated with a connection which has seen packets in both directions, NEW meaning that the packet has started a new connection, or otherwise associated with a connection which has not seen packets in both directions, and RELATED meaning that the packet is starting a new connection, but is associated with an existing connection, such as an FTP data transfer, or an ICMP error.
+string
+
+This modules matches a given string by using some pattern matching strategy. It requires a linux kernel >= 2.6.14.
+--algo bm|kmp
+Select the pattern matching strategy. (bm = Boyer-Moore, kmp = Knuth-Pratt-Morris)
+--from offset
+Set the offset from which it starts looking for any matching. If not passed, default is 0.
+--to offset
+Set the offset from which it starts looking for any matching. If not passed, default is the packet size.
+--string pattern
+Matches the given pattern. --hex-string pattern Matches the given pattern in hex notation.
+tcp
+
+These extensions are loaded if '--protocol tcp' is specified. It provides the following options:
+--source-port [!] port[:port]
+Source port or port range specification. This can either be a service name or a port number. An inclusive range can also be specified, using the format port:port. If the first port is omitted, "0" is assumed; if the last is omitted, "65535" is assumed. If the second port greater then the first they will be swapped. The flag --sport is a convenient alias for this option.
+--destination-port [!] port[:port]
+Destination port or port range specification. The flag --dport is a convenient alias for this option.
+--tcp-flags [!] mask comp
+Match when the TCP flags are as specified. The first argument is the flags which we should examine, written as a comma-separated list, and the second argument is a comma-separated list of flags which must be set. Flags are: SYN ACK FIN RST URG PSH ALL NONE. Hence the command
+iptables -A FORWARD -p tcp --tcp-flags SYN,ACK,FIN,RST SYN
+will only match packets with the SYN flag set, and the ACK, FIN and RST flags unset.
+[!] --syn
+Only match TCP packets with the SYN bit set and the ACK,RST and FIN bits cleared. Such packets are used to request TCP connection initiation; for example, blocking such packets coming in an interface will prevent incoming TCP connections, but outgoing TCP connections will be unaffected. It is equivalent to --tcp-flags SYN,RST,ACK,FIN SYN. If the "!" flag precedes the "--syn", the sense of the option is inverted.
+--tcp-option [!] number
+Match if TCP option set.
+--mss value[:value]
+Match TCP SYN or SYN/ACK packets with the specified MSS value (or range), which control the maximum packet size for that connection.
+tcpmss
+
+This matches the TCP MSS (maximum segment size) field of the TCP header. You can only use this on TCP SYN or SYN/ACK packets, since the MSS is only negotiated during the TCP handshake at connection startup time.
+[!] --mss value[:value]"
+Match a given TCP MSS value or range.
+time
+
+This matches if the packet arrival time/date is within a given range. All options are facultative.
+--timestart value
+Match only if it is after 'value' (Inclusive, format: HH:MM ; default 00:00).
+--timestop value
+Match only if it is before 'value' (Inclusive, format: HH:MM ; default 23:59).
+--days listofdays
+Match only if today is one of the given days. (format: Mon,Tue,Wed,Thu,Fri,Sat,Sun ; default everyday)
+--datestart date
+Match only if it is after 'date' (Inclusive, format: YYYY[:MM[:DD[:hh[:mm[:ss]]]]] ; h,m,s start from 0 ; default to 1970)
+--datestop date
+Match only if it is before 'date' (Inclusive, format: YYYY[:MM[:DD[:hh[:mm[:ss]]]]] ; h,m,s start from 0 ; default to 2037)
+tos
+
+This module matches the 8 bits of Type of Service field in the IP header (ie. including the precedence bits).
+--tos tos
+The argument is either a standard name, (use
+iptables -m tos -h
+to see the list), or a numeric value to match.
+ttl
+
+This module matches the time to live field in the IP header.
+--ttl-eq ttl
+Matches the given TTL value.
+--ttl-gt ttl
+Matches if TTL is greater than the given TTL value.
+--ttl-lt ttl
+Matches if TTL is less than the given TTL value.
+u32
+
+U32 allows you to extract quantities of up to 4 bytes from a packet, AND them with specified masks, shift them by specified amounts and test whether the results are in any of a set of specified ranges. The specification of what to extract is general enough to skip over headers with lengths stored in the packet, as in IP or TCP header lengths.
+Details and examples are in the kernel module source.
+
+udp
+
+These extensions are loaded if '--protocol udp' is specified. It provides the following options:
+--source-port [!] port[:port]
+Source port or port range specification. See the description of the --source-port option of the TCP extension for details.
+--destination-port [!] port[:port]
+Destination port or port range specification. See the description of the --destination-port option of the TCP extension for details.
+unclean
+
+This module takes no options, but attempts to match packets which seem malformed or unusual. This is regarded as experimental.

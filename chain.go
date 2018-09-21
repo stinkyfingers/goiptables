@@ -1,7 +1,9 @@
 package goiptables
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os/exec"
 )
 
@@ -40,7 +42,7 @@ const (
 
 // Append appends a Rule to a Chain
 func (c *Chain) Append(rule Rule) error {
-	args, err := rule.RuleSpecifications.parse()
+	args, err := rule.Marshal()
 	if err != nil {
 		return err
 	}
@@ -49,7 +51,7 @@ func (c *Chain) Append(rule Rule) error {
 }
 
 func (c *Chain) Check(rule Rule) error {
-	args, err := rule.RuleSpecifications.parse()
+	args, err := rule.Marshal()
 	if err != nil {
 		return err
 	}
@@ -59,7 +61,7 @@ func (c *Chain) Check(rule Rule) error {
 
 // Delete removes a Rule from the specified Chain by its RuleSpecification
 func (c *Chain) Delete(rule Rule) error {
-	args, err := rule.RuleSpecifications.parse()
+	args, err := rule.Marshal()
 	if err != nil {
 		return err
 	}
@@ -76,25 +78,25 @@ func (c *Chain) DeleteByRuleNum(rule Rule) error {
 // Insert inserts one rule as the rule number given by rule.RuleNumber.
 // 1 is the default ruleNumber if none is specified
 func (c *Chain) Insert(rule Rule) error {
-	args, err := rule.RuleSpecifications.parse()
-	if err != nil {
-		return err
-	}
 	if rule.RuleNumber == "" {
 		rule.RuleNumber = "1"
 	}
-	args = append([]string{rule.RuleNumber}, args...)
+	args, err := rule.Marshal()
+	if err != nil {
+		return err
+	}
+
 	_, err = c.runCommand(insertCommand, args...)
 	return err
 }
 
 // Replace replaces a Rule in the Chain
 func (c *Chain) Replace(rule Rule) error {
-	args, err := rule.RuleSpecifications.parse()
+	args, err := rule.Marshal()
 	if err != nil {
 		return err
 	}
-	_, err = c.runCommand(replaceCommand, append([]string{rule.RuleNumber}, args...)...)
+	_, err = c.runCommand(replaceCommand, args...)
 	return err
 }
 
@@ -159,10 +161,49 @@ func (c *Chain) RenameChain(name string) error {
 }
 
 func (c *Chain) runCommand(cmd command, args ...string) ([]byte, error) {
-	command := exec.Command(iptablesCommand, append([]string{string(cmd), c.Name}, args...)...)
-	out, err := command.Output()
+	cmdArgs := append([]string{string(cmd), c.Name}, args...)
+	command := exec.Command(iptablesCommand, cmdArgs...)
+
+	// pipe stdout & stderr
+	outPipe, err := command.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("%s; %s", err.Error(), string(out))
+		return nil, err
 	}
-	return out, nil
+	defer outPipe.Close()
+	errPipe, err := command.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	defer errPipe.Close()
+	outChan := make(chan []byte)
+	go pipe(outPipe, outChan)
+	errChan := make(chan []byte)
+	go pipe(errPipe, errChan)
+
+	// run cmd
+	err = command.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	// read out & err
+	if errBytes := <-errChan; len(errBytes) > 0 {
+		return nil, fmt.Errorf("%s", errBytes)
+	}
+	if outBytes := <-outChan; len(outBytes) > 0 {
+		return outBytes, nil
+	}
+
+	err = command.Wait()
+	return nil, err
+}
+
+// pipe reads from r and sends bytes on ch when r closes
+func pipe(r io.ReadCloser, ch chan []byte) {
+	var b []byte
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		b = append(b, scanner.Bytes()...)
+	}
+	ch <- b
 }
