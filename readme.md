@@ -72,9 +72,11 @@ r := Rule{
 	}
 ```
 
-str, err := r.Marshal()
+`str, err := r.Marshal()`
 
-...yields: `2 -t filter -m dccp -c 10 2 -m conntrack -m dccp --ctstate ESTABLISHED --dport 22`
+...yields: 
+
+`2 -t filter -m dccp -c 10 2 -m conntrack -m dccp --ctstate ESTABLISHED --dport 22`
 
 **Unmarshal a rule**
 
