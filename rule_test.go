@@ -5,49 +5,6 @@ import (
 	"testing"
 )
 
-func TestUnmarshal(t *testing.T) {
-	data := []byte("-t filter -i lo -j ACCEPT -c 2 10")
-	rule, err := Unmarshal(data)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// assert
-	if rule.RuleSpecifications.Jump != "ACCEPT" {
-		t.Errorf("expected Jump to be 'ACCEPT', got %s", rule.RuleSpecifications.Jump)
-	}
-	if rule.RuleSpecifications.InInterface != "lo" {
-		t.Errorf("expected InInterface to be 'lo', got %s", rule.RuleSpecifications.InInterface)
-	}
-	t.Log("RULE... ", rule)
-}
-
-func TestUnmarshalThorough(t *testing.T) {
-	tests := []struct {
-		rule     string
-		expected Rule
-	}{
-		{
-			rule:     `-A INPUT -s 8.8.8.8 -j DROP`,
-			expected: Rule{RuleSpecifications: RuleSpecifications{Source: "8.8.8.8", Jump: "DROP"}, Chain: Chain{Name: "INPUT"}, Action: AppendAction},
-		},
-		{
-			rule:     `-I OUTPUT -i eth0 -p tcp -s 8.8.8.8 -j DROP`,
-			expected: Rule{RuleSpecifications: RuleSpecifications{InInterface: "eth0", Protocol: "tcp", Source: "8.8.8.8", Jump: "DROP"}, Chain: Chain{Name: "OUTPUT"}, Action: InsertAction},
-		},
-	}
-
-	for _, test := range tests {
-		rule, err := Unmarshal([]byte(test.rule))
-		if err != nil {
-			t.Error(err)
-		}
-		if !reflect.DeepEqual(rule, test.expected) {
-			t.Errorf("marshal error, got \n%v\n, expected \n%v\n", rule, test.expected)
-		}
-	}
-}
-
 func TestMarshal(t *testing.T) {
 	r := Rule{
 		RuleNumber: "2",
@@ -113,6 +70,85 @@ func TestIsNil(t *testing.T) {
 	n = isNil(reflect.ValueOf(bar2))
 	if !n {
 		t.Error("expected struct to be nil")
+	}
+}
+
+func TestBuildFlag(t *testing.T) {
+	tests := []struct {
+		str, expected string
+	}{
+		{"c", "-c"},
+		{"conntrack", "--conntrack"},
+	}
+	for _, test := range tests {
+		result := buildFlag(test.str)
+		if result != test.expected {
+			t.Errorf("error building flag. expected %s, got %s", test.expected, result)
+		}
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
+	tests := []struct {
+		rule     string
+		expected Rule
+	}{
+		{
+			rule:     `-A INPUT -s 8.8.8.8 -j DROP`,
+			expected: Rule{RuleSpecifications: RuleSpecifications{Source: "8.8.8.8", Jump: "DROP"}, Chain: Chain{Name: "INPUT"}, Action: AppendAction},
+		},
+		{
+			rule:     `-I OUTPUT -i eth0 -p tcp -s 8.8.8.8 -j DROP`,
+			expected: Rule{RuleSpecifications: RuleSpecifications{InInterface: "eth0", Protocol: "tcp", Source: "8.8.8.8", Jump: "DROP"}, Chain: Chain{Name: "OUTPUT"}, Action: InsertAction},
+		},
+		{
+			rule:     `-t filter -i lo -j ACCEPT -c 2 10`,
+			expected: Rule{RuleSpecifications: RuleSpecifications{Jump: "ACCEPT", InInterface: "lo", SetCounters: "2 10"}, Table: "filter"},
+		},
+	}
+
+	for i, test := range tests {
+		rule, err := Unmarshal([]byte(test.rule))
+		if err != nil {
+			t.Error(err)
+		}
+		if !reflect.DeepEqual(rule, test.expected) {
+			t.Errorf("unmarshal error, got \n%v\n, expected \n%v\n on test %d", rule, test.expected, i)
+		}
+	}
+}
+
+func TestAssignValue(t *testing.T) {
+	type foo struct {
+		Str string
+		I   int
+	}
+	var f foo
+
+	tests := []struct {
+		b []byte
+		v reflect.Value
+	}{
+		{b: []byte("foo"), v: reflect.ValueOf(&f).Elem().Field(0)},
+		{b: []byte("1"), v: reflect.ValueOf(&f).Elem().Field(1)},
+	}
+
+	for _, test := range tests {
+		err := assignValue(test.b, test.v)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestLengthTag(t *testing.T) {
+	tag := reflect.StructTag(`length:"2"`)
+	i, err := lengthTag(tag)
+	if err != nil {
+		t.Error(err)
+	}
+	if i != 2 {
+		t.Errorf("expected length tag to be %d, got %d", 2, i)
 	}
 }
 
