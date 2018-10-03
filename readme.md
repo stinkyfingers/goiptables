@@ -1,13 +1,13 @@
 [Godoc](https://godoc.org/github.com/stinkyfingers/goiptables)
 
-#Goiptables#
+# Goiptable s#
 goiptables is a wrapper around Linux's iptables. 
 1) Assure that it is installed:
 `yum install iptables`
 `apt-get install iptables`
 2) Build things - you'll need to run as root.
 
-###Usage###
+### Usage ###
 **Insert a rule into the INPUT chain:**
 
 ```
