@@ -52,6 +52,7 @@ err := chain.Flush()
 ```
 
 **Marshal a rule (convert a Rule object into a string):**
+
 ```
 r := Rule{
 		RuleNumber: "2",
@@ -70,12 +71,17 @@ r := Rule{
 		},
 	}
 ```
+
 str, err := r.Marshal()
+
 ...yields: `2 -t filter -m dccp -c 10 2 -m conntrack -m dccp --ctstate ESTABLISHED --dport 22`
 
 **Unmarshal a rule**
+
 `str := "-I OUTPUT -i eth0 -p tcp -s 8.8.8.8 -j DROP"`
+
 `rule, err := Unmarshal(str)`
+
 ...yields
 
 ```
