@@ -23,5 +23,5 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       # - run: go get -v -t -d ./...
-      - run: yum install -y iptables
+      - run: apt-get install -y iptables
       - run: go test -v .
