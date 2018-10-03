@@ -5,57 +5,6 @@ import (
 	"testing"
 )
 
-func TestParseListRules(t *testing.T) {
-	output := []byte(`
--P INPUT ACCEPT
--P FORWARD ACCEPT
--P OUTPUT ACCEPT
--A INPUT -i lo -j ACCEPT`)
-	expectedPolicies := []Policy{
-		{Target: "INPUT"},
-		{Target: "FORWARD"},
-		{Target: "OUTPUT"},
-	}
-	expectedRules := []Rule{
-		{RuleSpecifications: RuleSpecifications{Jump: "ACCEPT", InInterface: "lo"}},
-	}
-
-	rules, policies, err := parseListRules(Filter, output)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if !reflect.DeepEqual(policies, expectedPolicies) {
-		t.Errorf("expected policies %v\n got %v\n", expectedPolicies, policies)
-	}
-	if !reflect.DeepEqual(rules, expectedRules) {
-		t.Errorf("expected policies %v\n got %v\n", expectedRules, rules)
-	}
-}
-
-func TestParseRule(t *testing.T) {
-	expected := []Rule{{
-		Table: "filter",
-		RuleSpecifications: RuleSpecifications{
-			Match:       "dccp",
-			SetCounters: "10 2",
-		},
-		MatchExtensions: MatchExtensions{
-			Dccp: Dccp{
-				DstPort: "22",
-			},
-		},
-	}}
-	output := []byte("-A INPUT -t filter c 10 2 -m dccp --dport 22")
-	rule, _, err := parseListRules("filter", output)
-	if err != nil {
-		t.Error(err)
-	}
-	if !reflect.DeepEqual(expected, rule) {
-		t.Errorf("error parsing rule, got \n%v\n, wanted \n%v\n", rule, expected)
-	}
-}
-
 func TestUnmarshal(t *testing.T) {
 	data := []byte("-t filter -i lo -j ACCEPT -c 2 10")
 	rule, err := Unmarshal(data)
@@ -71,6 +20,32 @@ func TestUnmarshal(t *testing.T) {
 		t.Errorf("expected InInterface to be 'lo', got %s", rule.RuleSpecifications.InInterface)
 	}
 	t.Log("RULE... ", rule)
+}
+
+func TestUnmarshalThorough(t *testing.T) {
+	tests := []struct {
+		rule     string
+		expected Rule
+	}{
+		{
+			rule:     `-A INPUT -s 8.8.8.8 -j DROP`,
+			expected: Rule{RuleSpecifications: RuleSpecifications{Source: "8.8.8.8", Jump: "DROP"}, Chain: Chain{Name: "INPUT"}, Action: AppendAction},
+		},
+		{
+			rule:     `-I OUTPUT -i eth0 -p tcp -s 8.8.8.8 -j DROP`,
+			expected: Rule{RuleSpecifications: RuleSpecifications{InInterface: "eth0", Protocol: "tcp", Source: "8.8.8.8", Jump: "DROP"}, Chain: Chain{Name: "OUTPUT"}, Action: InsertAction},
+		},
+	}
+
+	for _, test := range tests {
+		rule, err := Unmarshal([]byte(test.rule))
+		if err != nil {
+			t.Error(err)
+		}
+		if !reflect.DeepEqual(rule, test.expected) {
+			t.Errorf("marshal error, got \n%v\n, expected \n%v\n", rule, test.expected)
+		}
+	}
 }
 
 func TestMarshal(t *testing.T) {
@@ -138,5 +113,21 @@ func TestIsNil(t *testing.T) {
 	n = isNil(reflect.ValueOf(bar2))
 	if !n {
 		t.Error("expected struct to be nil")
+	}
+}
+
+func TestHandleAction(t *testing.T) {
+	var r Rule
+	line := [][]byte{[]byte("-I"), []byte("OUTPUT"), []byte("-j"), []byte("DROP")}
+	newLine := [][]byte{[]byte("-j"), []byte("DROP")}
+	line = r.handleAction(line)
+	if !reflect.DeepEqual(line, newLine) {
+		t.Errorf("expected line to be truncated, got \n%v", line)
+	}
+	if r.Action != InsertAction {
+		t.Errorf("expected insert action, got %s", r.Action)
+	}
+	if r.Chain.Name != "OUTPUT" {
+		t.Errorf("expected output chain, got %s", r.Chain)
 	}
 }

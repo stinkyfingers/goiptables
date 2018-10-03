@@ -46,12 +46,11 @@ func TestCommands(t *testing.T) {
 	}
 	t.Log(str)
 
-	rules, policies, err := chain.ListRules()
+	rules, err := chain.ListRules()
 	if err != nil {
 		t.Error(err)
 	}
-
-	t.Log(rules, policies)
+	t.Log(rules)
 
 	err = chain.Flush()
 	if err != nil {
@@ -98,14 +97,11 @@ func TestList(t *testing.T) {
 
 func TestListRules(t *testing.T) {
 	chain := &Chain{Name: "INPUT"}
-	rules, policies, err := chain.ListRules()
+	rules, err := chain.ListRules()
 	if err != nil {
 		t.Error(err)
 	}
-	if len(policies) < 1 {
-		t.Error("expected listed policies, got none")
-	}
-	if len(rules) > 0 {
-		t.Errorf("expected no listed rules, got %d", len(rules))
+	if len(rules) < 1 {
+		t.Errorf("expected listed rules, got %d", len(rules))
 	}
 }

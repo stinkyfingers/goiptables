@@ -2,6 +2,7 @@ package goiptables
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
@@ -112,12 +113,22 @@ func (c *Chain) List() (string, error) {
 
 // ListRules lists all Rules in the Chain
 // If no Chain.Name is specified, Rules in all Chains will be listed
-func (c *Chain) ListRules() ([]Rule, []Policy, error) {
+func (c *Chain) ListRules() ([]Rule, error) {
 	out, err := c.runCommand(listRulesCommand, "-v")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return parseListRules(c.Table, out)
+	// return parseListRules(c.Table, out)
+	var rules []Rule
+	lines := bytes.Split(out, []byte("\n"))
+	for _, line := range lines {
+		rule, err := Unmarshal(line)
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
 }
 
 // Flush removes all Rules in the Chain

@@ -1,5 +1,87 @@
 package goiptables
 
+type MatchExtensions struct {
+	Account     `flag:"m" short:"account"`
+	AddrType    `flag:"m" short:"addrtype"`
+	Ah          `flag:"m" short:"ah"`
+	Childlevel  `flag:"m" short:"childlevel"`
+	Comment     `flag:"m" short:"comment"`
+	Condition   `flag:"m" short:"condition"`
+	Connbytes   `flag:"m" short:"connbytes"`
+	Connlimit   `flag:"m" short:"connlimit"`
+	Connmark    `flag:"m" short:"connmark"`
+	Connrate    `flag:"m" short:"connrate"`
+	Conntrack   `flag:"m" short:"conntrack"`
+	Dccp        `flag:"m" short:"dccp"`
+	Dscp        `flag:"m" short:"dscp"`
+	DstLimit    `flag:"m" short:"dstlimit"`
+	Ecn         `flag:"m" short:"ecn"`
+	Esp         `flag:"m" short:"esp"`
+	Fuzzy       `flag:"m" short:"fuzzy"`
+	HashLimit   `flag:"m" short:"hashlimit"`
+	Helper      `flag:"m" short:"helper"`
+	Icmp        `flag:"m" short:"icmp"`
+	IpRange     `flag:"m" short:"iprange"`
+	Ipv4Options `flag:"m" short:"ipv4options"`
+	Length      `flag:"m" short:"length"`
+	Limit       `flag:"m" short:"limit"`
+	Mac         `flag:"m" short:"mac"`
+	Mark        `flag:"m" short:"mark"`
+	MPort       `flag:"m" short:"mport"`
+	MultiPort   `flag:"m" short:"multiport"`
+	Nth         `flag:"m" short:"nth"`
+	Osf         `flag:"m" short:"osf"`
+	Owner       `flag:"m" short:"owner"`
+	PhysDev     `flag:"m" short:"physdev"`
+	PktType     `flag:"m" short:"pkttype"`
+	Policy      `flag:"m" short:"policy"`
+	Psd         `flag:"m" short:"psd"`
+	Quota       `flag:"m" short:"quota"`
+	Random      `flag:"m" short:"random"`
+	Realm       `flag:"m" short:"realm"`
+	Recent      `flag:"m" short:"recent"`
+	Sctp        `flag:"m" short:"sctp"`
+	Set         `flag:"m" short:"set"`
+	State       `flag:"m" short:"state"`
+	String      `flag:"m" short:"string"`
+	Tcp         `flag:"m" short:"tcp"`
+	Tcpmss      `flag:"m" short:"tcpmss"`
+	Time        `flag:"m" short:"time"`
+	Tos         `flag:"m" short:"tos"`
+	Ttl         `flag:"m" short:"ttl"`
+	U32         `flag:"m" short:"u32"`
+	Udp         `flag:"m" short:"udp"`
+}
+
+type TargetExtensions struct {
+	Balance       `flag:"m" short:"balance"`
+	Classify      `flag:"m" short:"classify"`
+	Clusterip     `flag:"m" short:"clusterip"`
+	Connmark      `flag:"m" short:"connmark"`
+	Dnat          `flag:"m" short:"dnat"`
+	Dscp          `flag:"m" short:"dscp"`
+	Ecn           `flag:"m" short:"ecn"`
+	Ipmark        `flag:"m" short:"ipmark"`
+	Ipv4optsstrip `flag:"m" short:"ipv4optsstrip"`
+	Log           `flag:"m" short:"log"`
+	Mark          `flag:"m" short:"mark"`
+	Masquerade    `flag:"m" short:"masquerade"`
+	Mirror        `flag:"m" short:"mirror"`
+	Netmap        `flag:"m" short:"netmap"`
+	Nfqueue       `flag:"m" short:"nfqueue"`
+	Notrack       `flag:"m" short:"notrack"`
+	Redirect      `flag:"m" short:"redirect"`
+	Reject        `flag:"m" short:"reject"`
+	Same          `flag:"m" short:"same"`
+	Set           `flag:"m" short:"set"`
+	Snat          `flag:"m" short:"snat"`
+	Tcpmss        `flag:"m" short:"tcpmss"`
+	Tos           `flag:"m" short:"tos"`
+	Ttl           `flag:"m" short:"ttl"`
+	Ulog          `flag:"m" short:"ulog"`
+	Xor           `flag:"m" short:"xor"`
+}
+
 // MATCH EXTENSIONS
 
 type Account struct {
@@ -171,6 +253,12 @@ type PhysDev struct {
 }
 type PktType struct {
 	PktType string `short:"pkt-type" long:"pkt-type"`
+}
+type Policy struct {
+	// TODO check against docs
+	Table  string `short:"table" long:"table"`
+	Chain  string `short:"chain" long:"chain"`
+	Target string `short:"target" long:"target"`
 }
 type RulePolicy struct {
 	Dir       string `short:"dir" long:"dir"`

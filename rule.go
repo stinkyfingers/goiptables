@@ -20,10 +20,12 @@ import (
 type Rule struct {
 	RuleNumber string `short:"_" long:"_"`
 	Table      Table  `short:"t" long:"table"` // filter is default
+	Chain      Chain  `short:"-" long:"-"`
+	Action     Action `short:"-" long:"-"`
 
-	RuleSpecifications RuleSpecifications
-	MatchExtensions    MatchExtensions `short:"-" long:"-"`
-	TargetExtensions   TargetExtensions
+	RuleSpecifications RuleSpecifications `short:"-" long:"-"`
+	MatchExtensions    MatchExtensions    `short:"-" long:"-"`
+	TargetExtensions   TargetExtensions   `short:"-" long:"-"`
 }
 
 type RuleSpecifications struct {
@@ -39,87 +41,14 @@ type RuleSpecifications struct {
 	SetCounters  string `short:"c" long:"set-counters" length:"2"`
 }
 
-type MatchExtensions struct {
-	Account     `flag:"m" short:"account"`
-	AddrType    `flag:"m" short:"addrtype"`
-	Ah          `flag:"m" short:"ah"`
-	Childlevel  `flag:"m" short:"childlevel"`
-	Comment     `flag:"m" short:"comment"`
-	Condition   `flag:"m" short:"condition"`
-	Connbytes   `flag:"m" short:"connbytes"`
-	Connlimit   `flag:"m" short:"connlimit"`
-	Connmark    `flag:"m" short:"connmark"`
-	Connrate    `flag:"m" short:"connrate"`
-	Conntrack   `flag:"m" short:"conntrack"`
-	Dccp        `flag:"m" short:"dccp"`
-	Dscp        `flag:"m" short:"dscp"`
-	DstLimit    `flag:"m" short:"dstlimit"`
-	Ecn         `flag:"m" short:"ecn"`
-	Esp         `flag:"m" short:"esp"`
-	Fuzzy       `flag:"m" short:"fuzzy"`
-	HashLimit   `flag:"m" short:"hashlimit"`
-	Helper      `flag:"m" short:"helper"`
-	Icmp        `flag:"m" short:"icmp"`
-	IpRange     `flag:"m" short:"iprange"`
-	Ipv4Options `flag:"m" short:"ipv4options"`
-	Length      `flag:"m" short:"length"`
-	Limit       `flag:"m" short:"limit"`
-	Mac         `flag:"m" short:"mac"`
-	Mark        `flag:"m" short:"mark"`
-	MPort       `flag:"m" short:"mport"`
-	MultiPort   `flag:"m" short:"multiport"`
-	Nth         `flag:"m" short:"nth"`
-	Osf         `flag:"m" short:"osf"`
-	Owner       `flag:"m" short:"owner"`
-	PhysDev     `flag:"m" short:"physdev"`
-	PktType     `flag:"m" short:"pkttype"`
-	Policy      `flag:"m" short:"policy"`
-	Psd         `flag:"m" short:"psd"`
-	Quota       `flag:"m" short:"quota"`
-	Random      `flag:"m" short:"random"`
-	Realm       `flag:"m" short:"realm"`
-	Recent      `flag:"m" short:"recent"`
-	Sctp        `flag:"m" short:"sctp"`
-	Set         `flag:"m" short:"set"`
-	State       `flag:"m" short:"state"`
-	String      `flag:"m" short:"string"`
-	Tcp         `flag:"m" short:"tcp"`
-	Tcpmss      `flag:"m" short:"tcpmss"`
-	Time        `flag:"m" short:"time"`
-	Tos         `flag:"m" short:"tos"`
-	Ttl         `flag:"m" short:"ttl"`
-	U32         `flag:"m" short:"u32"`
-	Udp         `flag:"m" short:"udp"`
-}
+type Action string
 
-type TargetExtensions struct {
-	Balance       `flag:"m" short:"balance"`
-	Classify      `flag:"m" short:"classify"`
-	Clusterip     `flag:"m" short:"clusterip"`
-	Connmark      `flag:"m" short:"connmark"`
-	Dnat          `flag:"m" short:"dnat"`
-	Dscp          `flag:"m" short:"dscp"`
-	Ecn           `flag:"m" short:"ecn"`
-	Ipmark        `flag:"m" short:"ipmark"`
-	Ipv4optsstrip `flag:"m" short:"ipv4optsstrip"`
-	Log           `flag:"m" short:"log"`
-	Mark          `flag:"m" short:"mark"`
-	Masquerade    `flag:"m" short:"masquerade"`
-	Mirror        `flag:"m" short:"mirror"`
-	Netmap        `flag:"m" short:"netmap"`
-	Nfqueue       `flag:"m" short:"nfqueue"`
-	Notrack       `flag:"m" short:"notrack"`
-	Redirect      `flag:"m" short:"redirect"`
-	Reject        `flag:"m" short:"reject"`
-	Same          `flag:"m" short:"same"`
-	Set           `flag:"m" short:"set"`
-	Snat          `flag:"m" short:"snat"`
-	Tcpmss        `flag:"m" short:"tcpmss"`
-	Tos           `flag:"m" short:"tos"`
-	Ttl           `flag:"m" short:"ttl"`
-	Ulog          `flag:"m" short:"ulog"`
-	Xor           `flag:"m" short:"xor"`
-}
+const (
+	InsertAction Action = "insert"
+	AppendAction Action = "append"
+	DeleteAction Action = "delete"
+	PolicyAction Action = "policy"
+)
 
 // Marshal converts a Rule into its C-style command-line args
 func (r *Rule) Marshal() ([]string, error) {
@@ -207,48 +136,13 @@ func buildFlag(identifier string) string {
 	return fmt.Sprintf("%s%s", dash, identifier)
 }
 
-// parseListRules parses the []byte output from iptables list functions
-func parseListRules(table Table, output []byte) ([]Rule, []Policy, error) {
-	var rules []Rule
-	var policies []Policy
-
-	lines := bytes.Split(output, []byte("\n"))
-	for _, line := range lines {
-		arr := bytes.Split(line, []byte(" "))
-		if len(arr) < 2 {
-			continue
-		}
-		switch string(arr[0]) {
-		case "-P":
-			// policy
-			policies = append(policies, Policy{Target: string(arr[1])})
-		case "-A":
-			// appended rule
-			fallthrough
-		case "-I":
-			// inserted rule
-			rule, err := Unmarshal(bytes.Join(arr[2:], []byte(" ")))
-			if err != nil {
-				return rules, policies, err
-			}
-			rules = append(rules, rule)
-
-		default:
-			// unknown
-			return rules, policies, errors.New("unknown command")
-		}
-
-	}
-
-	return rules, policies, nil
-}
-
 // Unmarshal converts a single line from ListRules into a Rule
 func Unmarshal(data []byte) (Rule, error) {
 	var rule Rule
 	ruleValue := reflect.ValueOf(&rule).Elem()
 
 	line := bytes.Split(data, []byte(" "))
+	line = rule.handleAction(line)
 
 	type valSet struct {
 		key   reflect.StructTag
@@ -260,6 +154,7 @@ func Unmarshal(data []byte) (Rule, error) {
 		vals = append(vals, valSet{ruleValue.Type().Field(i).Tag, ruleValue.Field(i)})
 	}
 
+Outer:
 	for {
 		if len(vals) == 0 {
 			break
@@ -288,7 +183,8 @@ func Unmarshal(data []byte) (Rule, error) {
 				break
 			}
 
-			if current.key.Get("short") == string(bytes.Trim(line[index], "-")) {
+			// arg flag matches struct tag
+			if bytes.Contains(line[index], []byte("-")) && current.key.Get("short") == string(bytes.Trim(line[index], "-")) {
 				// array args - pass as space-separated length
 				length, err := lengthTag(current.key)
 				if err != nil {
@@ -300,7 +196,7 @@ func Unmarshal(data []byte) (Rule, error) {
 					value = append(value, []byte(" ")...)
 				}
 				assignValue(bytes.TrimSpace(value), current.value)
-				break
+				continue Outer
 			}
 		}
 	}
@@ -336,4 +232,25 @@ func lengthTag(key reflect.StructTag) (int, error) {
 		return length, nil
 	}
 	return strconv.Atoi(lengthStr)
+}
+
+// handleAction sets a rule's Action and Chain, if they are in the line input
+func (r *Rule) handleAction(line [][]byte) [][]byte {
+	if len(line) < 2 {
+		return line
+	}
+	switch string(line[0]) {
+	case "-I":
+		r.Action = InsertAction
+	case "-A":
+		r.Action = AppendAction
+	case "-D":
+		r.Action = DeleteAction
+	case "-P":
+		r.Action = PolicyAction
+	default:
+		return line
+	}
+	r.Chain = Chain{Name: string(line[1])}
+	return line[2:]
 }
