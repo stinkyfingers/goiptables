@@ -1,10 +1,14 @@
 package goiptables
 
 import (
+	"os/exec"
 	"testing"
 )
 
 func TestCommands(t *testing.T) {
+	if !iptablesIsInstalled() {
+		t.Skip("iptables not installed")
+	}
 	var err error
 	chain := &Chain{Name: "INPUT"}
 
@@ -58,7 +62,10 @@ func TestCommands(t *testing.T) {
 	}
 }
 
-func TestAppend(t *testing.T) {
+func TestAppendCommand(t *testing.T) {
+	if !iptablesIsInstalled() {
+		t.Skip("iptables not installed")
+	}
 	chain := &Chain{Name: "INPUT"}
 
 	// error
@@ -84,7 +91,10 @@ func TestAppend(t *testing.T) {
 	chain.Flush()
 }
 
-func TestList(t *testing.T) {
+func TestListCommand(t *testing.T) {
+	if !iptablesIsInstalled() {
+		t.Skip("iptables not installed")
+	}
 	chain := &Chain{Name: "INPUT"}
 	out, err := chain.List()
 	if err != nil {
@@ -95,7 +105,10 @@ func TestList(t *testing.T) {
 	}
 }
 
-func TestListRules(t *testing.T) {
+func TestListRulesCommand(t *testing.T) {
+	if !iptablesIsInstalled() {
+		t.Skip("iptables not installed")
+	}
 	chain := &Chain{Name: "INPUT"}
 	rules, err := chain.ListRules()
 	if err != nil {
@@ -104,4 +117,12 @@ func TestListRules(t *testing.T) {
 	if len(rules) < 1 {
 		t.Errorf("expected listed rules, got %d", len(rules))
 	}
+}
+
+func iptablesIsInstalled() bool {
+	_, err := exec.Command("iptables", "-V").Output()
+	if err != nil {
+		return false
+	}
+	return true
 }

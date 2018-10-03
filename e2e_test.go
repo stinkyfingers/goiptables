@@ -7,6 +7,9 @@ import (
 )
 
 func TestCreateChainRules(t *testing.T) {
+	if !iptablesIsInstalled() {
+		t.Skip("iptables not installed")
+	}
 	chain := Chain{
 		Name:  "TEST_CHAIN",
 		Table: "filter",

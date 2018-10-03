@@ -51,6 +51,7 @@ func (c *Chain) Append(rule Rule) error {
 	return err
 }
 
+// Checks if rule exists in Chain
 func (c *Chain) Check(rule Rule) error {
 	args, err := rule.Marshal()
 	if err != nil {
@@ -171,6 +172,7 @@ func (c *Chain) RenameChain(name string) error {
 	return err
 }
 
+// runCommand is the primary Chain command func; sends stdout & stderr to the function's []byte and err return values
 func (c *Chain) runCommand(cmd command, args ...string) ([]byte, error) {
 	cmdArgs := append([]string{string(cmd), c.Name}, args...)
 	command := exec.Command(iptablesCommand, cmdArgs...)

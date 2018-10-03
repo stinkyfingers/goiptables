@@ -1,4 +1,6 @@
-package goiptables
+// +build generate
+
+package main
 type Balance struct {
 	ToDestination string `short:"to-destination" long:"to-destination"`
 }
