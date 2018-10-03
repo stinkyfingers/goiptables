@@ -1,6 +1,6 @@
 [Godoc](https://godoc.org/github.com/stinkyfingers/goiptables)
 
-# Goiptable s#
+# Goiptable #
 goiptables is a wrapper around Linux's iptables. 
 1) Assure that it is installed:
 `yum install iptables`
