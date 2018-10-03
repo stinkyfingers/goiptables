@@ -24,4 +24,4 @@ jobs:
       # specify any bash command here prefixed with `run: `
       # - run: go get -v -t -d ./...
       - run: sudo apt-get install -y iptables
-      - run: sudo go test -v .
+      - run: sudo env "PATH=$PATH" go test -v .
